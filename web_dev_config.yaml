@@ -1,0 +1,15 @@
+# Local dev server + API proxy (same idea as eatos-live-dashboard Vite: /api → browserapi).
+# See https://docs.flutter.dev/platform-integration/web/web-dev-config-file
+#
+# Run: flutter run -d chrome   (or -d edge)
+# Default: http://127.0.0.1:53300 — avoids Windows bind issues on 0.0.0.0:8080 (see README).
+# App + API share origin; client base URL should be /api (see lib/config/api_config.dart).
+# For LAN access from other devices, set host to "0.0.0.0" if your policy allows.
+
+server:
+  host: "127.0.0.1"
+  port: 53300
+  proxy:
+    - target: "https://browserapi.eatos.net/"
+      prefix: "/api/"
+      replace: ""
