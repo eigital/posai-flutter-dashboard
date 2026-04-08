@@ -43,6 +43,18 @@ npm start
 
 Open `http://localhost:9090`. Optional: `API_TARGET=https://other-host.example npm start`
 
+## Cloudflare Pages deployment
+
+Build with `--base-href=/` so the `$FLUTTER_BASE_HREF` placeholder in `index.html` resolves correctly, and pass the production API URL since there is no `/api` proxy on Cloudflare:
+
+```bash
+flutter build web --release --base-href=/ --dart-define=API_BASE_URL=https://browserapi.eatos.net
+```
+
+**Output directory:** `build/web` — point Cloudflare Pages to this folder.
+
+The `web/_redirects` file (SPA catch-all) and `web/_headers` are copied into the build output automatically so Cloudflare serves `index.html` for all routes.
+
 ## Tests
 
 ```bash
