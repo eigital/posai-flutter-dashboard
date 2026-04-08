@@ -1,1 +1,8 @@
-/* /index.html 200
+# No redirect rules here on purpose.
+#
+# Cloudflare Workers rejects `/* /index.html 200` in _redirects (API error 10021 — infinite loop).
+# SPA fallback for client-side routes is configured in wrangler.toml:
+#   [assets] not_found_handling = "single-page-application"
+#
+# Cloudflare Pages: if you deploy only static output without Wrangler, you may add an SPA
+# catch-all per https://developers.cloudflare.com/pages/configuration/redirects/

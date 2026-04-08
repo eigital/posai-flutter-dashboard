@@ -43,17 +43,30 @@ npm start
 
 Open `http://localhost:9090`. Optional: `API_TARGET=https://other-host.example npm start`
 
-## Cloudflare Pages deployment
+## Cloudflare deployment
 
-Build with `--base-href=/` so the `$FLUTTER_BASE_HREF` placeholder in `index.html` resolves correctly, and pass the production API URL since there is no `/api` proxy on Cloudflare:
+### Build (local or CI)
+
+Build with `--base-href=/` so the `$FLUTTER_BASE_HREF` placeholder in `index.html` resolves correctly, and pass the production API base (including `/api`) since there is no dev proxy on Cloudflare:
 
 ```bash
-flutter build web --release --base-href=/ --dart-define=API_BASE_URL=https://browserapi.eatos.net
+flutter pub get
+flutter build web --release --base-href=/ --dart-define=API_BASE_URL=https://browserapi.eatos.net/api
 ```
 
-**Output directory:** `build/web` — point Cloudflare Pages to this folder.
+**Output directory:** `build/web`.
 
-The `web/_redirects` file (SPA catch-all) and `web/_headers` are copied into the build output automatically so Cloudflare serves `index.html` for all routes.
+`web/_headers` is copied into `build/web` by Flutter. Do **not** put `/* /index.html 200` in `web/_redirects` for **Cloudflare Workers** — the API rejects it ([error 10021](https://developers.cloudflare.com/workers/observability/errors/#validation-errors-10021)). SPA routing for Workers is set in **`wrangler.toml`** via `assets.not_found_handling = "single-page-application"`.
+
+### Cloudflare Workers (`wrangler deploy`)
+
+1. Build as above so `build/web` exists (complete Flutter output, including `flutter_bootstrap.js`).
+2. From this directory: `npx wrangler deploy`
+3. Ensure **`wrangler.toml`** `name` matches your Worker name if you already created one in the dashboard.
+
+### Cloudflare Pages (dashboard build)
+
+Point **Build output** to **`build/web`**. If you use Pages-only static hosting (no Wrangler), you may configure SPA fallbacks via [Pages redirects](https://developers.cloudflare.com/pages/configuration/redirects/) as needed; the Workers-specific `_redirects` limitation above does not apply the same way to the Pages pipeline.
 
 ## Tests
 

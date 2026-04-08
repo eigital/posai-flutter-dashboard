@@ -1,0 +1,10 @@
+# Cloudflare Workers — static Flutter web (SPA).
+# Run `flutter build web --release --base-href=/ --dart-define=API_BASE_URL=https://browserapi.eatos.net/api` first; assets are served from build/web.
+#
+# Rename `name` if your Worker uses a different name in the dashboard.
+name = "posai-flutter-dashboard"
+compatibility_date = "2025-04-01"
+
+[assets]
+directory = "build/web"
+not_found_handling = "single-page-application"
