@@ -109,7 +109,7 @@ class _LoginFormContentState extends State<_LoginFormContent> {
     final result = await authRepository.login(
       email: _emailController.text.trim(),
       password: _passwordController.text,
-      rememberMe: _rememberMe,
+      // rememberMe: _rememberMe,
     );
     if (!mounted) {
       return;

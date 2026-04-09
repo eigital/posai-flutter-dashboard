@@ -1,12 +1,13 @@
 import 'dart:convert';
 
-import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'package:eo_dashboard_flutter/api/app_dio.dart';
 import 'package:eo_dashboard_flutter/api/normalize_error.dart';
+import 'package:eo_dashboard_flutter/config/supabase_config.dart';
 import 'package:eo_dashboard_flutter/constants/cookie_keys.dart';
 import 'package:eo_dashboard_flutter/constants/storage_keys.dart';
+import 'package:eo_dashboard_flutter/integrations/supabase/supabase_client.dart';
 import 'package:eo_dashboard_flutter/services/payload_utils.dart';
 
 /// Result of [login] (password never stored).
@@ -21,12 +22,14 @@ class LoginResult {
   factory LoginResult.failure(String message) => LoginResult._(ok: false, errorMessage: message);
 }
 
-/// Mirrors [eatos-live-dashboard/src/services/authService.ts] `login` + persistence.
+/// Local session marker for Supabase RPC login — not a eatOS API JWT.
+const String _supabaseSessionTokenPlaceholder = 'supabase_rpc';
+
+/// Login via Supabase `login_with_email_password` RPC + SharedPreferences persistence.
 class AuthRepository {
-  AuthRepository(this._prefs) : _dio = createAppDio(_prefs);
+  AuthRepository(this._prefs);
 
   final SharedPreferences _prefs;
-  final Dio _dio;
 
   /// Whether session looks valid (token + userData), matching [authService.isAuthenticated].
   Future<bool> isLoggedIn() async {
@@ -45,112 +48,79 @@ class AuthRepository {
   Future<LoginResult> login({
     required String email,
     required String password,
-    required bool rememberMe,
   }) async {
+    if (!supabaseConfigured) {
+      return LoginResult.failure(
+        'Supabase is not configured. Build with --dart-define=SUPABASE_URL=<url> '
+        'and --dart-define=SUPABASE_PUBLISHABLE_KEY=<anon-key>.',
+      );
+    }
     try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        '/user/login',
-        data: <String, dynamic>{
-          'username': email,
-          'password': password,
-          'rememberMeFor30Days': rememberMe,
+      final raw = await supabase.rpc(
+        'login_with_email_password',
+        params: <String, dynamic>{
+          'p_email': email,
+          'p_password': password,
         },
       );
-      final data = response.data;
+      final data = _asStringKeyMap(raw);
       if (data == null) {
         return LoginResult.failure('Empty response');
       }
-      if (data['success'] == 1) {
-        await _persistAfterSuccessfulLogin(data);
-        final payload = toPayload(data);
-        await _loadStoreSettings(payload['storeId']);
-        return LoginResult.success();
+      final success = data['success'];
+      final ok = success == 1 || success == '1';
+      if (!ok) {
+        return LoginResult.failure(
+          data['message']?.toString() ?? 'Invalid credentials. Please try again.',
+        );
       }
-      return LoginResult.failure(data['message']?.toString() ?? 'Invalid credentials. Please try again.');
-    } on DioException catch (e) {
-      return LoginResult.failure(normalizeError(e));
+      await _persistAfterSupabaseRpc(data);
+      return LoginResult.success();
+    } on PostgrestException catch (e) {
+      return LoginResult.failure(e.message);
     } catch (e) {
       return LoginResult.failure(normalizeError(e));
     }
   }
 
-  Future<void> _persistAfterSuccessfulLogin(Map<String, dynamic> body) async {
-    final payload = toPayload(body);
-
-    Future<void> setIfPresent(String key, dynamic value) async {
-      if (value == null) {
-        return;
-      }
-      await _prefs.setString(key, value.toString());
+  Map<String, dynamic>? _asStringKeyMap(dynamic value) {
+    if (value == null) {
+      return null;
     }
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return null;
+  }
 
-    final role = payload['role'];
-    final roleNameResolved = coalesceStr([
-      payload['roleName'],
-      role is Map ? role['roleName'] : null,
-    ]);
+  Future<void> _persistAfterSupabaseRpc(Map<String, dynamic> rpcBody) async {
+    final payload = Map<String, dynamic>.from(toPayload(rpcBody));
+    final first = payload['first_name']?.toString().trim() ?? '';
+    final last = payload['last_name']?.toString().trim() ?? '';
+    final full = [first, last].where((s) => s.isNotEmpty).join(' ');
+    if (full.isNotEmpty) {
+      payload['fullname'] = full;
+      payload['employeeName'] = full;
+    }
+    payload['authProvider'] = 'supabase';
 
-    await setIfPresent(cookieKeyToken, payload['token']);
-    await setIfPresent(
-      cookieKeyEmployeeName,
-      coalesceStr([payload['employeeName'], payload['fullname']]),
-    );
-    await setIfPresent(cookieKeyHas2FA, payload['has2FA']);
-    await setIfPresent(cookieKeyStoreId, payload['storeId']);
-    await setIfPresent(cookieKeyMainStoreId, payload['mainStoreId']);
-    await setIfPresent(cookieKeyMerchantId, payload['merchantId']);
-    await setIfPresent(cookieKeyEmployeeId, payload['employeeId']);
-    await setIfPresent(cookieKeyRoleName, roleNameResolved);
-    await setIfPresent(
-      cookieKeyLoggedAccount,
-      coalesceStr([payload['loggedAccount'], payload['username']]),
-    );
-    await setIfPresent(
-      cookieKeyEmployeeMobile,
-      coalesceStr([payload['employeeMobile'], payload['mobile']]),
-    );
-
-    final isSuperAdmin = payload['isSuperAdmin'] == true ||
-        payload['superAdmin'] == true ||
-        '${payload['superAdminPage'] ?? ''}' == '3' ||
-        (roleNameResolved?.toLowerCase().contains('super') ?? false);
-    await _prefs.setString(cookieKeySuperAdmin, isSuperAdmin ? '3' : '0');
-
-    for (final perm in permissionList(payload)) {
-      final name = perm['permissionName']?.toString();
-      if (name == null || name.isEmpty) {
-        continue;
-      }
-      await _prefs.setString(
-        permissionCookieKey(name),
-        (perm['permissionValue'] ?? '').toString(),
-      );
+    await _prefs.setString(cookieKeyToken, _supabaseSessionTokenPlaceholder);
+    final email = payload['email']?.toString();
+    if (email != null && email.isNotEmpty) {
+      await _prefs.setString(cookieKeyLoggedAccount, email);
+    }
+    final displayName = coalesceStr([full, email]);
+    if (displayName != null && displayName.isNotEmpty) {
+      await _prefs.setString(cookieKeyEmployeeName, displayName);
     }
 
     await _prefs.setString(storageKeyUserData, jsonEncode(payload));
     await _prefs.setString(storageKeyAutoLogin, 'true');
-    await _prefs.setString(
-      storageKeyTargetLanguage,
-      (payload['employeeLanguage'] ?? 'en').toString(),
-    );
+    await _prefs.setString(storageKeyTargetLanguage, 'en');
     await _prefs.setString(storageKeyIsTestMode, '0');
-  }
-
-  Future<void> _loadStoreSettings(dynamic storeId) async {
-    if (storeId == null) {
-      return;
-    }
-    if (storeId.toString().trim().isEmpty) {
-      return;
-    }
-    try {
-      final res = await _dio.get<dynamic>(
-        '/settings',
-        queryParameters: <String, dynamic>{'storeId': storeId.toString()},
-      );
-      await applyStoreSettings(_prefs, res.data);
-    } catch (_) {
-      /* non-fatal */
-    }
+    await _prefs.setString(cookieKeySuperAdmin, '0');
   }
 }
