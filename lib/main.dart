@@ -2,16 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'bootstrap/app_state.dart';
+import 'config/supabase_config.dart';
+import 'integrations/supabase/supabase_client.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/forgot_password_page.dart';
 import 'pages/login_page.dart';
 import 'pages/signup_page.dart';
+import 'pages/supabase_diagnostic_page.dart';
 import 'pages/verify_email_page.dart';
 import 'services/auth_repository.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialise Supabase before anything else touches the client.
+  // Credentials injected via --dart-define at build time (never hard-coded).
+  if (supabaseConfigured) {
+    await initSupabase();
+    // Mirror deliveryos: initialise the delivery-photos bucket on startup.
+    initializeStorageBuckets().ignore();
+  }
+
   final prefs = await SharedPreferences.getInstance();
   authRepository = AuthRepository(prefs);
   runApp(const EatOsDashboardApp());
@@ -32,6 +44,7 @@ class EatOsDashboardApp extends StatelessWidget {
         '/dashboard': (context) => const DashboardPage(),
         '/signup': (context) => const SignUpPage(),
         '/forgot-password': (context) => const ForgotPasswordPage(),
+        '/supabase-diag': (context) => const SupabaseDiagnosticPage(),
         '/verify-email': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
           final email = args is String ? args : '';

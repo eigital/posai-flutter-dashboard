@@ -1,3 +1,6 @@
+# Supabase / build-time secrets — never commit real credentials
+dart_defines.json
+
 # Miscellaneous
 *.class
 *.log
