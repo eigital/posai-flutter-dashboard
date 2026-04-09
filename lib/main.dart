@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'bootstrap/app_state.dart';
+import 'config/supabase_config.dart';
 import 'pages/dashboard_page.dart';
 import 'pages/forgot_password_page.dart';
 import 'pages/login_page.dart';
@@ -12,6 +14,14 @@ import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (isSupabaseConfigured) {
+    await Supabase.initialize(
+      url: supabaseUrl,
+      anonKey: supabaseAnonKey,
+    );
+  } else {
+    debugLogSupabaseSkipped();
+  }
   final prefs = await SharedPreferences.getInstance();
   authRepository = AuthRepository(prefs);
   runApp(const EatOsDashboardApp());

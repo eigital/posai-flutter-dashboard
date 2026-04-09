@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local Supabase compile-time defines (copy from dart_defines/supabase.defs.example.json)
+/dart_defines/supabase.defs.json

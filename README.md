@@ -20,6 +20,29 @@ flutter run -d chrome --dart-define=API_BASE_URL=https://browserapi.eatos.net/ap
 
 Without `--dart-define`, **web** uses `${Uri.base.origin}/api` (works with the dev proxy). **Non-web** defaults to `https://browserapi.eatos.net` (see `lib/config/api_config.dart`).
 
+### Supabase (Flutter Web)
+
+Documentation here targets **Flutter Web** (`flutter run -d chrome` / `flutter build web`). The app initializes [supabase_flutter](https://pub.dev/packages/supabase_flutter) when **`SUPABASE_URL`** and **`SUPABASE_ANON_KEY`** are set at compile time. Use your project URL and **publishable** or **anon** key from the Supabase dashboard (not `service_role`, not the Postgres connection string).
+
+1. Copy `dart_defines/supabase.defs.example.json` to `dart_defines/supabase.defs.json` and fill in real values (`supabase.defs.json` is gitignored).
+2. Run or build for web with:
+
+```bash
+flutter run -d chrome --dart-define-from-file=dart_defines/supabase.defs.json
+```
+
+Combine with API override if needed:
+
+```bash
+flutter run -d chrome --dart-define-from-file=dart_defines/supabase.defs.json --dart-define=API_BASE_URL=https://browserapi.eatos.net/api
+```
+
+When you add **magic links, email confirmation redirects, or OAuth** for web, register your dev and production site URLs under Supabase **Authentication → URL Configuration** (e.g. `http://127.0.0.1:53300/**` and your deployed origin).
+
+**Cloudflare / CI:** add the same `--dart-define-from-file=...` or pass individual `--dart-define=SUPABASE_URL=...` and `--dart-define=SUPABASE_ANON_KEY=...` from secrets.
+
+**Direct Postgres URLs** (e.g. `postgresql://postgres:...@db....supabase.co:5432/postgres`) are for server tools and migrations only—do not embed them in the Flutter app.
+
 ### Windows: dev server bind errors (`SocketException`, errno 10013)
 
 If `flutter run` fails with **Failed to bind** on the configured port:
@@ -51,8 +74,10 @@ Build with `--base-href=/` so the `$FLUTTER_BASE_HREF` placeholder in `index.htm
 
 ```bash
 flutter pub get
-flutter build web --release --base-href=/ --dart-define=API_BASE_URL=https://browserapi.eatos.net/api
+flutter build web --release --base-href=/ --dart-define=API_BASE_URL=https://browserapi.eatos.net/api --dart-define-from-file=dart_defines/supabase.defs.json
 ```
+
+If Supabase defines are not available in CI, omit `--dart-define-from-file` (the app runs without Supabase until defines are added).
 
 **Output directory:** `build/web`.
 
