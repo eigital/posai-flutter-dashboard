@@ -16,6 +16,8 @@
 
 library;
 
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:eo_dashboard_flutter/config/supabase_config.dart';
@@ -48,17 +50,38 @@ Future<void> initSupabase() async {
 ///
 /// Mirrors `initializeStorageBuckets` in the deliveryos TS client.
 /// Non-fatal — logs errors but never throws.
+///
+/// On web, calls the same-origin Cloudflare Worker proxy (/supabase-fn/...)
+/// instead of supabase.functions.invoke() to avoid cross-origin CORS errors.
+/// On non-web platforms, uses the Supabase SDK directly.
 Future<Map<String, dynamic>> initializeStorageBuckets() async {
   try {
-    final response = await supabase.functions.invoke(
-      'create-delivery-photos-bucket',
-      method: HttpMethod.post,
-    );
-    final data = response.data;
-    if (data is Map<String, dynamic>) {
-      return data;
+    if (kIsWeb) {
+      final session = supabase.auth.currentSession;
+      final token = session?.accessToken ?? supabasePublishableKey;
+      final dio = Dio();
+      final response = await dio.post<dynamic>(
+        '/supabase-fn/create-delivery-photos-bucket',
+        options: Options(
+          headers: {
+            'apikey': supabasePublishableKey,
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic>) return data;
+      return {'data': data};
+    } else {
+      final response = await supabase.functions.invoke(
+        'create-delivery-photos-bucket',
+        method: HttpMethod.post,
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic>) return data;
+      return {'data': data};
     }
-    return {'data': data};
   } catch (error) {
     // Non-fatal — bucket may already exist or function unavailable.
     return {'error': error.toString()};
