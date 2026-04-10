@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../bootstrap/app_state.dart';
+import '../bootstrap/app_state.dart' show authRefresh, authRepository;
 import '../constants/login_assets.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -90,7 +91,7 @@ class _LoginFormContentState extends State<_LoginFormContent> {
         if (!mounted) {
           return;
         }
-        Navigator.of(context).pushReplacementNamed('/dashboard');
+        context.go('/');
       }
     });
   }
@@ -126,7 +127,8 @@ class _LoginFormContentState extends State<_LoginFormContent> {
           backgroundColor: p.foreground,
         ),
       );
-      Navigator.of(context).pushReplacementNamed('/dashboard');
+      authRefresh.notifyAuthChanged();
+      context.go('/');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -237,7 +239,7 @@ class _LoginFormContentState extends State<_LoginFormContent> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.of(context).pushNamed('/forgot-password');
+                context.push('/forgot-password');
               },
               style: TextButton.styleFrom(
                 foregroundColor: p.primary,
@@ -314,7 +316,7 @@ class _LoginFormContentState extends State<_LoginFormContent> {
                 baseline: TextBaseline.alphabetic,
                 child: GestureDetector(
                   onTap: () {
-                    Navigator.of(context).pushNamed('/signup');
+                    context.push('/signup');
                   },
                   child: Text(
                     'Create a New Account',

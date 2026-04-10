@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
+import 'shell_theme.dart';
 
 /// Inter-based themes matching the React dashboard (`font-family: Inter`).
 class AppTheme {
@@ -107,6 +108,9 @@ class AppTheme {
         checkColor: WidgetStatePropertyAll(p.background),
         side: BorderSide(color: p.input, width: 1.5),
       ),
+      extensions: <ThemeExtension<dynamic>>[
+        brightness == Brightness.light ? EatOsShellTheme.light : EatOsShellTheme.dark,
+      ],
     );
   }
 }

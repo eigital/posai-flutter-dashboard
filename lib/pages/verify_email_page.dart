@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -116,7 +117,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
   }
 
   void _backToForgot() {
-    Navigator.of(context).pushReplacementNamed('/forgot-password');
+    context.go('/forgot-password');
   }
 
   @override

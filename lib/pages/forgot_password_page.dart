@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../constants/login_assets.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_image_slider.dart';
-import 'login_page.dart';
 
 /// Matches [eatos-live-dashboard/src/pages/ForgotPassword.tsx] layout and client checks.
 class ForgotPasswordPage extends StatefulWidget {
@@ -30,13 +30,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   void _goToLogin() {
-    final nav = Navigator.of(context);
-    if (nav.canPop()) {
-      nav.pop();
+    if (context.canPop()) {
+      context.pop();
     } else {
-      nav.pushReplacement(
-        MaterialPageRoute<void>(builder: (_) => const LoginPage()),
-      );
+      context.go('/login');
     }
   }
 
@@ -71,10 +68,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         backgroundColor: p.foreground,
       ),
     );
-    Navigator.of(context).pushNamed(
-      '/verify-email',
-      arguments: trimmed,
-    );
+    context.push('/verify-email', extra: trimmed);
   }
 
   @override

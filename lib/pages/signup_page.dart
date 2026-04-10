@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../constants/login_assets.dart';
@@ -8,7 +9,6 @@ import '../constants/signup_data.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/auth_image_slider.dart';
-import 'login_page.dart';
 
 /// Sign-up flow matching [eatos-live-dashboard/src/pages/SignUp.tsx] (UI + client checks).
 class SignUpPage extends StatefulWidget {
@@ -136,15 +136,10 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   void _goToLogin() {
-    final nav = Navigator.of(context);
-    if (nav.canPop()) {
-      nav.pop();
+    if (context.canPop()) {
+      context.pop();
     } else {
-      nav.pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => const LoginPage(),
-        ),
-      );
+      context.go('/login');
     }
   }
 
