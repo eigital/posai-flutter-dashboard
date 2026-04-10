@@ -2,30 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'bootstrap/app_state.dart';
+import 'bootstrap/auth_refresh.dart';
 import 'config/supabase_config.dart';
 import 'integrations/supabase/supabase_client.dart';
-import 'pages/dashboard_page.dart';
-import 'pages/forgot_password_page.dart';
-import 'pages/login_page.dart';
-import 'pages/signup_page.dart';
-import 'pages/supabase_diagnostic_page.dart';
-import 'pages/verify_email_page.dart';
+import 'router/app_router.dart';
 import 'services/auth_repository.dart';
 import 'theme/app_theme.dart';
+import 'theme/theme_controller.dart';
+import 'theme/theme_scope.dart';
+
+final ThemeController themeController = ThemeController();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialise Supabase before anything else touches the client.
-  // Credentials injected via --dart-define at build time (never hard-coded).
   if (supabaseConfigured) {
     await initSupabase();
-    // Mirror deliveryos: initialise the delivery-photos bucket on startup.
     initializeStorageBuckets().ignore();
   }
 
   final prefs = await SharedPreferences.getInstance();
   authRepository = AuthRepository(prefs);
+  authRefresh = AuthRefreshNotifier();
+  appRouter = createAppRouter();
   runApp(const EatOsDashboardApp());
 }
 
@@ -34,24 +33,21 @@ class EatOsDashboardApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'eatOS',
-      debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      routes: {
-        '/dashboard': (context) => const DashboardPage(),
-        '/signup': (context) => const SignUpPage(),
-        '/forgot-password': (context) => const ForgotPasswordPage(),
-        '/supabase-diag': (context) => const SupabaseDiagnosticPage(),
-        '/verify-email': (context) {
-          final args = ModalRoute.of(context)?.settings.arguments;
-          final email = args is String ? args : '';
-          return VerifyEmailPage(email: email);
-        },
+    return ListenableBuilder(
+      listenable: themeController,
+      builder: (context, _) {
+        return ThemeControllerScope(
+          controller: themeController,
+          child: MaterialApp.router(
+            title: 'eatOS',
+            debugShowCheckedModeBanner: false,
+            themeMode: themeController.mode,
+            theme: AppTheme.light(),
+            darkTheme: AppTheme.dark(),
+            routerConfig: appRouter,
+          ),
+        );
       },
-      home: const LoginPage(),
     );
   }
 }
